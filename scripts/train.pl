@@ -4,7 +4,6 @@ use warnings;
 use File::Basename qw/basename/;
 use Data::Dumper qw/Dumper/;
 use Getopt::Long qw/GetOptions/;
-#use Algorithm::Viterbi;
 
 local $0 = basename $0;
 exit main();
