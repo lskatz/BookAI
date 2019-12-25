@@ -14,7 +14,7 @@ my $observedFile = "$dirname/data/MM.dmp.tmp";
 # Run the help menu and see what comes out
 subtest "Running the help menu" => sub{
   plan tests=>2;
-  my $helpmenu = `$dirname/../scripts/train.pl --help`;
+  my $helpmenu = `$dirname/../scripts/train-MM.pl --help`;
   my $exit_code = $? << 8;
   is($exit_code << 8, 0, "Exit code");
   ok(length($helpmenu) > 0, "Help menu exists");
@@ -23,7 +23,7 @@ subtest "Running the help menu" => sub{
 subtest "Make the training file" => sub{
   plan tests=>2;
   # Make the training file
-  system("perl $dirname/../scripts/train.pl $infile > $observedFile");
+  system("perl $dirname/../scripts/train-MM.pl $infile > $observedFile");
   is($?, 0, "Error code for training war of the worlds");
 
   my $observed = readDumper($observedFile);
