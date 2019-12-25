@@ -10,10 +10,11 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help numwords|num-words=i)) or die $!;
+  GetOptions($settings,qw(help numsentences|num-sentences|sentences=i numwords|num-words|words=i)) or die $!;
   usage() if($$settings{help});
   usage() if(!@ARGV);
-  $$settings{numwords} ||= 50;
+  $$settings{numwords}     ||= 50;
+  $$settings{numsentences} ||= 5;
   
   my($infile) = @ARGV;
 
@@ -58,6 +59,7 @@ sub generateText{
   # Generate the rest of the sentence starting with the start word
   my $currentWord = $startWord;
   my $generatedText = $startWord;
+  my $sentenceCounter = 0;
   for(my $i=0; $i<$numWords; $i++){
     my $rand = rand(1);
     my $cumulative = 0;
@@ -70,6 +72,15 @@ sub generateText{
       if($rand < $cumulative){
         $currentWord = $toWord;
         $generatedText .= " $toWord";
+        last;
+      }
+    }
+
+    # Count sentences but this is really naive because
+    # things like Mr. will trip it up.
+    if($generatedText =~ /[\.\?!]$/){
+      $sentenceCounter++;
+      if($sentenceCounter >= $$settings{numsentences}){
         last;
       }
     }
@@ -99,7 +110,11 @@ sub readDumper{
 sub usage{
   print "$0: generate text from a markov model
   Usage: $0 model.dmp > generated.txt
-  --numwords  50
+  --numwords     50
+  --numsentences 5  
+
+  The generated text will end when it reaches the target
+  number of words or sentences.
 ";
   exit 0;
 }
