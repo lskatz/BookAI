@@ -6,6 +6,7 @@ use Data::Dumper qw/Dumper/;
 use Getopt::Long qw/GetOptions/;
 
 local $0 = basename $0;
+sub logmsg{print STDERR "$0: @_\n";}
 exit main();
 
 sub main{
@@ -48,7 +49,7 @@ sub generateText{
     $cumulative += $$model{start}{$possibleStartWord};
     if($rand < $cumulative){
       if($possibleStartWord !~ /^\w+$/){
-        print "Skipping - $possibleStartWord\n";
+        #print "Skipping - $possibleStartWord\n";
         next;
       }
       $startWord = $possibleStartWord;
