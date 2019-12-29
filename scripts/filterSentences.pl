@@ -4,7 +4,8 @@ use warnings;
 use File::Basename qw/basename/;
 use Data::Dumper qw/Dumper/;
 use Getopt::Long qw/GetOptions/;
-use Lingua::EN::Grammarian qw/extract_cautions_from extract_errors_from/;
+#use Lingua::EN::Grammarian qw/extract_cautions_from extract_errors_from/;
+use Text::Aspell;
 
 local $0 = basename $0;
 sub logmsg{print STDERR "$0: @_\n";}
@@ -15,20 +16,26 @@ sub main{
   GetOptions($settings,qw(verbose help)) or die $!;
   usage() if($$settings{help});
 
+  # Read stdin
   my $str = "";
   while(<STDIN>){
     $str.=$_;
   }
   close STDIN;
 
-  my $validatedStr = validateText($str, $settings);
+  # Create our spell checker
+  my $aspell = Text::Aspell->new;
+  $aspell->set_option("lang", "en_US");
+  $aspell->set_option("sug-mode", "fast");
+
+  my $validatedStr = spellCheck($str, $settings);
 
   print $validatedStr;
 
   return 0;
 }
 
-sub validateText{
+sub validateTextWithGrammarian{
   my($str, $settings) = @_;
 
   #my @cautions = extract_cautions_from($str);

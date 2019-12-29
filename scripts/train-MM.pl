@@ -4,6 +4,7 @@ use warnings;
 use File::Basename qw/basename/;
 use Data::Dumper qw/Dumper/;
 use Getopt::Long qw/GetOptions/;
+use Lingua::EN::Sentence qw/get_sentences add_acronyms/;
 
 local $0 = basename $0;
 exit main();
@@ -30,20 +31,31 @@ sub train{
   # MM variables
   my(%transition, %start, $previousWord);
 
-  # HMM variables
-  #my(%transition, %emission, %start);
-  #my $previousWord;
-  #my $state;
-
   # split the infile into 'words'
+  local $/ = undef;
   open(my $fh, '<', $infile) or die "ERROR reading file $infile: $!";
-  while(<$fh>){
-    chomp;
+  my $text = <$fh>;
+  close $fh;
+
+  for my $sentence(@{ get_sentences($text) }){
+    $sentence =~ s/^\s+|\s+$//g;
+
+    # Identify the ending punctuation of the sentence
+    my $endingPunctuation;
+    if($sentence =~ /([\.;\?!]+)$/){
+      $endingPunctuation = $1;
+      # Remove the end punctuation for later
+      $sentence = substr($sentence,0, -1 * length($endingPunctuation));
+    }
+    # Only accept sentences with punctuation
+    if(!defined($endingPunctuation)){
+      next;
+    }
 
     # Split into words.
     # 'Words' can also be punctuation.
     # Whitespace information is removed.
-    for my $word(split(/\b/)){
+    for my $word(split(/\b/, $sentence)){
       $word =~ s/^\s+|\s+$//g; # whitespace trim
       next if($word =~ /^$/);
       $start{$word}++;
@@ -55,8 +67,14 @@ sub train{
       }
       $previousWord = $word;
     }
+
+    # End of sentence: next word is the punctuation.
+    # The punctuation will be notated with a $ like in suffix trees
+    my $word = $endingPunctuation.'$';
+    $transition{$previousWord}{$word}++;
+    $transition{$previousWord}{__count}++;
+    $previousWord = $word;
   }
-  close $fh;
 
   # Normalize start probabilities into frequencies
   while(my($key,$value) = each(%start)){
@@ -65,6 +83,8 @@ sub train{
 
   my @word = keys(%start);
   my $numDiffWords = scalar(@word);
+  
+  die "TODO need to normalize by __count and also figure out why punctuation isn't being normalized";
 
   for(my $i=0; $i<$numDiffWords; $i++){
     my $from = $word[$i];
