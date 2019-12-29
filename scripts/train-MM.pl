@@ -29,7 +29,7 @@ sub train{
   my $wordsCounter = 0;
 
   # MM variables
-  my(%transition, %start, $previousWord, %wordCount);
+  my(%transition, %start, $previousWord, %wordCount, $startWordsCounter);
 
   # split the infile into 'words'
   local $/ = undef;
@@ -57,8 +57,12 @@ sub train{
     # Whitespace information is removed.
     my @word = split(/\b/, $sentence);
 
+    # Don't accept sentences that start with a non-word char
+    next if($word[0] =~ /^\W/);
+
     # Record the first word as a possible seed to the MM
     $start{$word[0]}++;
+    $startWordsCounter++;
 
     # Record the words in the markov model
     for my $word(@word){
@@ -84,7 +88,7 @@ sub train{
 
   # Normalize start probabilities into frequencies
   while(my($key,$value) = each(%start)){
-    $start{$key} = $value/$wordsCounter;
+    $start{$key} = $value/$startWordsCounter;
   }
 
   my @word = keys(%wordCount);

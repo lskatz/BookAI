@@ -11,15 +11,16 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help numsentences|num-sentences|sentences=i numwords|num-words|words=i)) or die $!;
+  GetOptions($settings,qw(help numsentences|num-sentences|sentences=i )) or die $!;
   usage() if($$settings{help});
   usage() if(!@ARGV);
-  $$settings{numwords}     ||= 50;
-  $$settings{numsentences} ||= 5;
+  $$settings{numsentences} ||= 1;
   
   my($infile) = @ARGV;
 
-  my $text = generateText($infile, $$settings{numwords}, $settings);
+  my $text = generateText($infile, $$settings{numsentences}, $settings);
+
+  #die $text;
 
   # Cleanup
   $text =~ s/^(\w)/uc($1)/e; # Start the sample with uppercase
@@ -35,11 +36,11 @@ sub main{
 }
 
 sub generateText{
-  my($modelFile, $numWords, $settings) = @_;
+  my($modelFile, $numSentences, $settings) = @_;
 
   my $model = readDumper($modelFile, $settings);
 
-  my @word = keys(%{ $$model{start} });
+  my @word = sort keys(%{ $$model{start} });
   
   # Choose a start word
   my $startWord;
@@ -47,6 +48,7 @@ sub generateText{
   my $cumulative = 0;
   for my $possibleStartWord (@word){
     $cumulative += $$model{start}{$possibleStartWord};
+    #logmsg "$rand <? $cumulative - $possibleStartWord";
     if($rand < $cumulative){
       if($possibleStartWord !~ /^\w+$/){
         #print "Skipping - $possibleStartWord\n";
@@ -56,15 +58,39 @@ sub generateText{
       last;
     }
   }
+  if(!$startWord){
+    die "ERROR: no seed was found. The markov model might be corrupted.";
+  }
 
-  # Generate the rest of the sentence starting with the start word
-  my $currentWord = $startWord;
+  # This MM is punctuation-based. Generate one sentence
+  # at a time.
+  my $seed = $startWord;
   my $generatedText = $startWord;
   my $sentenceCounter = 0;
-  for(my $i=0; $i<$numWords; $i++){
+  for(my $i=0; $i<$numSentences; $i++){
+    my $sentence = generateSentence($seed, $model, $settings);
+    $generatedText .= $sentence;
+    $seed = substr($generatedText, 0, -1) . '$';
+  }
+
+  return $generatedText;
+}
+
+sub generateSentence{
+  my($seed, $model, $settings) = @_;
+
+  my $currentWord = $seed;
+  my $generatedText = "";
+
+  my $is_end_of_sentence = 0;
+  EACH_WORD:
+  while(! $is_end_of_sentence){
     my $rand = rand(1);
     my $cumulative = 0;
+    die $generatedText if(!$currentWord);
     while(my($toWord, $freq) = each(%{ $$model{transition}{$currentWord} })){
+      # Don't count properties as things with frequency.
+      # Properties start with __ .
       next if($toWord =~ /^__/);
 
       #print "$rand - $cumulative - $possibleStartWord\n";
@@ -72,19 +98,17 @@ sub generateText{
       $cumulative += $freq;
       if($rand < $cumulative){
         $currentWord = $toWord;
-        $generatedText .= " $toWord";
-        last;
+        if($currentWord =~ /\$$/){
+          $currentWord = substr($currentWord, 0, -1);
+          $generatedText .= $currentWord;
+          $is_end_of_sentence = 1;
+          last EACH_WORD;
+        }
+
+        $generatedText .= " $currentWord";
       }
     }
 
-    # Count sentences but this is really naive because
-    # things like Mr. will trip it up.
-    if($generatedText =~ /[\.\?!]$/){
-      $sentenceCounter++;
-      if($sentenceCounter >= $$settings{numsentences}){
-        last;
-      }
-    }
   }
 
   return $generatedText;
@@ -111,11 +135,7 @@ sub readDumper{
 sub usage{
   print "$0: generate text from a markov model
   Usage: $0 model.dmp > generated.txt
-  --numwords     50
-  --numsentences 5  
-
-  The generated text will end when it reaches the target
-  number of words or sentences.
+  --numsentences 1  
 ";
   exit 0;
 }
