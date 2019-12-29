@@ -29,7 +29,7 @@ sub train{
   my $wordsCounter = 0;
 
   # MM variables
-  my(%transition, %start, $previousWord);
+  my(%transition, %start, $previousWord, %wordCount);
 
   # split the infile into 'words'
   local $/ = undef;
@@ -55,11 +55,17 @@ sub train{
     # Split into words.
     # 'Words' can also be punctuation.
     # Whitespace information is removed.
-    for my $word(split(/\b/, $sentence)){
+    my @word = split(/\b/, $sentence);
+
+    # Record the first word as a possible seed to the MM
+    $start{$word[0]}++;
+
+    # Record the words in the markov model
+    for my $word(@word){
       $word =~ s/^\s+|\s+$//g; # whitespace trim
       next if($word =~ /^$/);
-      $start{$word}++;
       $wordsCounter++;
+      $wordCount{$word}++;
 
       if(defined($previousWord)){
         $transition{$previousWord}{$word}++;
@@ -81,28 +87,22 @@ sub train{
     $start{$key} = $value/$wordsCounter;
   }
 
-  my @word = keys(%start);
+  my @word = keys(%wordCount);
   my $numDiffWords = scalar(@word);
   
-  die "TODO need to normalize by __count and also figure out why punctuation isn't being normalized";
-
   for(my $i=0; $i<$numDiffWords; $i++){
     my $from = $word[$i];
 
-    # Count the number of 'to' words to calculate frequency
-    my $numberOfToWords = 0;
-    for(my $j=0; $j<$numDiffWords; $j++){
-      my $to = $word[$j];
-      next if(!defined($transition{$from}{$to}));
-      $numberOfToWords += $transition{$from}{$to};
-    }
-
     # Change count to frequency
-    for(my $j=0; $j<$numDiffWords; $j++){
-      my $to = $word[$j];
-      next if(!defined($transition{$from}{$to}));
-      $transition{$from}{$to} = $transition{$from}{$to} / $numberOfToWords;
+    my %freq;
+    while(my($to, $count) = each(%{ $transition{$from} })){
+      if($to =~ /^__/){
+        $freq{$to} = $count;
+      } else {
+        $freq{$to} = $count / $transition{$from}{__count};
+      }
     }
+    $transition{$from} = \%freq;
   }
       
   return {
