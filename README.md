@@ -1,5 +1,7 @@
 # BookAI
 
+[![Build Status](https://travis-ci.com/lskatz/BookAI.svg?branch=master)](https://travis-ci.com/lskatz/BookAI)
+
 Create a sample of text using markov models
 
 ## Synopsis
