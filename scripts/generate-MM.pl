@@ -28,7 +28,7 @@ sub main{
   $text =~ s/[’]/'/g;        # Transform single quotes
   $text =~ s/"+\s*"+//g;     # Remove empty quotes
   $text =~ s/\s+([\.!\?,;])/$1/g;   # remove whitespace before punctuation
-  $text =~ s/ ' s /'s /g;
+  $text =~ s/ ' s /'s /g;    # Remove space in between ' s
 
   print "$text\n";
 
@@ -70,7 +70,23 @@ sub generateText{
   for(my $i=0; $i<$numSentences; $i++){
     #logmsg "rep $i starts with $seed";
     my $sentence = generateSentence($seed, $model, $settings);
+
+    # Check sentence for quality
+    my $dictionOut = `echo '$sentence' | diction 2>&1`;
+    my $exit_code = $? << 8;
+    if($exit_code || $dictionOut =~ /\[/){
+      #logmsg "Sentence seemed to have warnings. Trying another. <= $sentence";
+      $numSentences++;
+      if($numSentences > 10 * $$settings{numsentences}){
+        warn "WARNING: too many invalid sentences. Quitting early.";
+        return $generatedText;
+      }
+      next;
+    }
+
+    # Add the sentence to the growing body.
     $generatedText .= $sentence;
+    # New seed is the punctuation with $
     $seed = substr($generatedText, -1, 1) . '$';
   }
 
