@@ -24,6 +24,9 @@ WriteMakefile1(
     'Data::Dumper'   => 0,
     'Getopt::Long'   => 0,
     'Exporter'       => 0,
+
+    # noncore
+    'Lingua::EN::Sentence' => 0,
   },
   BUILD_REQUIRES => {
     'Test::More'     => 0.47,
