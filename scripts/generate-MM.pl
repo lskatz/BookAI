@@ -68,9 +68,10 @@ sub generateText{
   my $generatedText = $startWord;
   my $sentenceCounter = 0;
   for(my $i=0; $i<$numSentences; $i++){
+    #logmsg "rep $i starts with $seed";
     my $sentence = generateSentence($seed, $model, $settings);
     $generatedText .= $sentence;
-    $seed = substr($generatedText, 0, -1) . '$';
+    $seed = substr($generatedText, -1, 1) . '$';
   }
 
   return $generatedText;

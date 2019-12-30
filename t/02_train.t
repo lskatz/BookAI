@@ -7,7 +7,7 @@ use Test::More tests=>2;
 
 my $dirname = dirname $0;
 local $0 = basename $0;
-my $infile = "$dirname/data/war-of-the-worlds.txt";
+my $infile = "$dirname/data/pride-and-prejudice.txt";
 my $expectedFile = "$dirname/data/MM.dmp";
 my $observedFile = "$dirname/data/MM.dmp.tmp";
 
@@ -24,7 +24,7 @@ subtest "Make the training file" => sub{
   plan tests=>2;
   # Make the training file
   system("perl $dirname/../scripts/train-MM.pl $infile > $observedFile");
-  is($?, 0, "Error code for training war of the worlds");
+  is($?, 0, "Error code for training with pride and prejudice");
 
   my $observed = readDumper($observedFile);
   my $expected = readDumper($expectedFile);
