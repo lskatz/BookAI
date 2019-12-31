@@ -22,7 +22,7 @@ subtest "Generate some text" => sub{
   my $exit_code = $? << 8;
   is($exit_code, 0, "Exit code 0");
   my @word = split(/\s+/, $sentence);
-  ok(scalar(@word) > 1, "Generated more than two words in a single sentence: $sentence");
+  ok(scalar(@word) > 0, "Generated more than one word in a single sentence: $sentence");
 };
 
 subtest "Generate five sentences" => sub{
@@ -44,7 +44,7 @@ subtest "Generate five sentences" => sub{
     for(my $i=0;$i<$numSentences;$i++){
       my $sentence = $$sentences[$i];
       my @word = split(/\s+/, $sentence);
-      ok(scalar(@word) > 1, ">1 word in sentence $i => $sentence");
+      ok(scalar(@word) >= 1, ">=1 word in sentence $i => $sentence");
     }
   };
 };
