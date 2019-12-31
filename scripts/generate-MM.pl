@@ -4,6 +4,7 @@ use warnings;
 use File::Basename qw/basename/;
 use Data::Dumper qw/Dumper/;
 use Getopt::Long qw/GetOptions/;
+use Text::Fuzzy;
 
 local $0 = basename $0;
 sub logmsg{print STDERR "$0: @_\n";}
@@ -149,9 +150,40 @@ sub generateSentence{
   return $generatedText;
 }
 
+# If --boost, then increase the frequency of that
+# word in the model.
 sub boostModel{
   my($model, $boost, $settings) = @_;
   my($boostedWord, $freqInc) = split(/,/, $boost);
+
+  # Find the closest existing word for the boosted word
+  if(!defined($$model{transition}{$boostedWord})){
+    my $tf = Text::Fuzzy->new($boostedWord, trans=>1);
+    my @nearest = $tf->nearestv([keys(%{ $$model{transition} })]);
+    my $nearest = $nearest[0]; # band aid
+
+    # TODO filter @nearest for something like 
+    # If capitalized, then filter for capitalized
+    
+    logmsg "Could not find $boostedWord for boosting! Substituting $nearest for $boostedWord in the model.";
+    logmsg "Distance is ".$tf->distance($nearest)."\n";
+
+    # Change the label in the start/seed words
+    $$model{start}{$boostedWord} = $$model{start}{$nearest};
+    delete($$model{start}{$nearest});
+
+    # Change the label in the transition FROM words
+    $$model{transition}{$boostedWord} = $$model{transition}{$nearest};
+    delete($$model{transition}{$nearest});
+
+    # Change the label in the transition TO words
+    for my $from(keys(%{ $$model{transition} })){
+      if(defined($$model{transition}{$from}{$nearest})){
+        $$model{transition}{$from}{$boostedWord} = $$model{transition}{$from}{$nearest};
+        delete($$model{transition}{$from}{$nearest});
+      }
+    }
+  }
 
   # Boost the start word
   $$model{start}{$boostedWord} += $freqInc;
