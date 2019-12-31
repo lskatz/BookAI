@@ -11,10 +11,11 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help numsentences|num-sentences|sentences=i )) or die $!;
+  GetOptions($settings,qw(help filter! numsentences|num-sentences|sentences=i )) or die $!;
   usage() if($$settings{help});
   usage() if(!@ARGV);
   $$settings{numsentences} ||= 1;
+  $$settings{filter}       //= 1;
   
   my($infile) = @ARGV;
 
@@ -23,7 +24,6 @@ sub main{
   #die $text;
 
   # Cleanup
-  $text =~ s/^(\w)/uc($1)/e; # Start the sample with uppercase
   $text =~ s/[“”]/"/g;       # Transform double quotes
   $text =~ s/[’]/'/g;        # Transform single quotes
   $text =~ s/"+\s*"+//g;     # Remove empty quotes
@@ -71,17 +71,28 @@ sub generateText{
     #logmsg "rep $i starts with $seed";
     my $sentence = generateSentence($seed, $model, $settings);
 
-    # Check sentence for quality
-    my $dictionOut = `echo '$sentence' | diction 2>&1`;
-    my $exit_code = $? << 8;
-    if($exit_code || $dictionOut =~ /\[/){
-      #logmsg "Sentence seemed to have warnings. Trying another. <= $sentence";
-      $numSentences++;
+    if($$settings{filter}){
+      # Check sentence for quality
+      my $dictionOut = `echo '$sentence' | diction 2>&1`;
+      my $exit_code = $? << 8;
+      if($exit_code || $dictionOut =~ /\[/){
+        #logmsg "Sentence seemed to have warnings. Trying another. <= $sentence";
+        $numSentences++;
+        next;
+      }
+
+      my @localWords = split(/\s+/, $sentence);
+      if(@localWords > 20 || @localWords < 2){
+        $numSentences++;
+        next;
+      }
+
+      # Stop the script from short circuiting from too
+      # many filtered sentences.
       if($numSentences > 10 * $$settings{numsentences}){
         warn "WARNING: too many invalid sentences. Quitting early.";
         return $generatedText;
       }
-      next;
     }
 
     # Add the sentence to the growing body.
@@ -128,6 +139,9 @@ sub generateSentence{
 
   }
 
+  # First word uppercase
+  $generatedText =~ s/^(\w)/uc($1)/e;
+
   return $generatedText;
 }
 
@@ -153,6 +167,8 @@ sub usage{
   print "$0: generate text from a markov model
   Usage: $0 model.dmp > generated.txt
   --numsentences 1  
+  --no-filter       Do not remove and replace any sentence that
+                    does not pass a simple grammar check.
 ";
   exit 0;
 }
