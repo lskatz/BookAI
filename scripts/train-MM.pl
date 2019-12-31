@@ -55,7 +55,13 @@ sub train{
     # Split into words.
     # 'Words' can also be punctuation.
     # Whitespace information is removed.
-    my @word = split(/\b/, $sentence);
+    my @word = grep {/\S/ } 
+               map{
+                 s/^\s+|\s+$//g;        # trim whitespace
+                 s/^_([a-zA-Z]+)_$/$1/; # remove italics
+                 $_;
+               } 
+               split(/\b/, $sentence);
 
     # Don't accept sentences that start with a non-word char
     next if($word[0] =~ /^\W/);
@@ -66,8 +72,8 @@ sub train{
 
     # Record the words in the markov model
     for my $word(@word){
-      $word =~ s/^\s+|\s+$//g; # whitespace trim
       next if($word =~ /^$/);
+
       $wordsCounter++;
       $wordCount{$word}++;
 
