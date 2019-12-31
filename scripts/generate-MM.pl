@@ -11,11 +11,12 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help filter! numsentences|num-sentences|sentences=i )) or die $!;
+  GetOptions($settings,qw(help boost=s filter! numsentences|num-sentences|sentences=i )) or die $!;
   usage() if($$settings{help});
   usage() if(!@ARGV);
   $$settings{numsentences} ||= 1;
   $$settings{filter}       //= 1;
+  $$settings{boost}        ||= "";
   
   my($infile) = @ARGV;
 
@@ -39,6 +40,9 @@ sub generateText{
   my($modelFile, $numSentences, $settings) = @_;
 
   my $model = readDumper($modelFile, $settings);
+  if($$settings{boost}){
+    boostModel($model, $$settings{boost}, $settings);
+  }
 
   my @word = sort keys(%{ $$model{start} });
   
@@ -145,6 +149,28 @@ sub generateSentence{
   return $generatedText;
 }
 
+sub boostModel{
+  my($model, $boost, $settings) = @_;
+  my($boostedWord, $freqInc) = split(/,/, $boost);
+
+  # Boost the start word
+  $$model{start}{$boostedWord} += $freqInc;
+
+  my @startWords = keys(%{ $$model{start} });
+  
+  # Boost the transition words
+  for my $from(keys(%{ $$model{transition} })){
+    $$model{transition}{$from}{$boostedWord} += $freqInc;
+  }
+
+  # Ensure that the boosted word can transition to something else
+  for(@startWords){
+    $$model{transition}{$boostedWord}{$_} += $freqInc;
+  }
+
+  return $model;
+}
+
 sub readDumper{
   my($file, $settings) = @_;
 
@@ -167,8 +193,12 @@ sub usage{
   print "$0: generate text from a markov model
   Usage: $0 model.dmp > generated.txt
   --numsentences 1  
-  --no-filter       Do not remove and replace any sentence that
-                    does not pass a simple grammar check.
+  --boost        Word,0.1  Raise the probability of a word appearing
+                           by adding a frequency. For example, if
+                           a word might appear 0.1 of the time and you
+                           supply 0.1, then it will change to 0.2.
+  --no-filter              Do not remove and replace any sentence that
+                           does not pass a simple grammar check.
 ";
   exit 0;
 }
