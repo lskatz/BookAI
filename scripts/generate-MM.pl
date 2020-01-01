@@ -154,7 +154,11 @@ sub generateSentence{
 # word in the model.
 sub boostModel{
   my($model, $boost, $settings) = @_;
-  my($boostedWord, $freqInc) = split(/,/, $boost);
+  my($boostedWord, $freqInc, $changeTo) = split(/,/, $boost);
+
+  if($changeTo){
+    ...;
+  }
 
   # Find the closest existing word for the boosted word
   if(!defined($$model{transition}{$boostedWord})){
@@ -242,6 +246,9 @@ sub usage{
                            by adding a frequency. For example, if
                            a word might appear 0.1 of the time and you
                            supply 0.1, then it will change to 0.2.
+  --boost        Word,0.1,Word2
+                           With this method of --boost, replace Word
+                           with Word2.
   --no-filter              Do not remove and replace any sentence that
                            does not pass a simple grammar check.
 ";
