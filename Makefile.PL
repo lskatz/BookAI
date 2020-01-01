@@ -28,6 +28,7 @@ WriteMakefile1(
     # noncore
     'Lingua::EN::Sentence' => 0,
     'Text::Fuzzy'          => 0,
+    'Text::ParseWords'     => 0,
   },
   BUILD_REQUIRES => {
     'Test::More'     => 0.47,

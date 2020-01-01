@@ -10,7 +10,7 @@ my $dirname = dirname $0;
 local $0 = basename $0;
 my $MMFile = "$dirname/data/MM.dmp";
 
-system("perl $dirname/../scripts/generate-MM.pl --help");
+system("perl $dirname/../scripts/generate-MM.pl --help >/dev/null 2>&1");
 my $exit_code = $? << 8;
 is($exit_code, 0, "Help menu; exit code 0");
 
@@ -35,6 +35,9 @@ subtest "Generate five sentences" => sub{
   chomp($fiveSentences);
   my $exit_code = $? << 8;
   is($exit_code, 0, "Exit code 0");
+
+  diag "Five sentences:";
+  diag $fiveSentences;
 
   # Test each of the five sentences
   subtest "At least two words per $numSentences sentences" => sub{

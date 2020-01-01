@@ -5,6 +5,7 @@ use File::Basename qw/basename/;
 use Data::Dumper qw/Dumper/;
 use Getopt::Long qw/GetOptions/;
 use Lingua::EN::Sentence qw/get_sentences add_acronyms/;
+use Text::ParseWords qw/quotewords/;
 
 local $0 = basename $0;
 exit main();
@@ -55,16 +56,26 @@ sub train{
     # Split into words.
     # 'Words' can also be punctuation.
     # Whitespace information is removed.
-    my @word = grep {/\S/ } 
+    my @word = quotewords('\s+', 0, $sentence);
+       @word = grep {/\S/ } 
                map{
+                 s/\x94/ /g;            # Remove <94>
+                 s/[“”]//g;             # Change windows quotes
+                 s/[‘’]//g;             # Change windows quotes
+                 s/,//g;                # remove commas
                  s/^\s+|\s+$//g;        # trim whitespace
                  s/^_([a-zA-Z]+)_$/$1/; # remove italics
                  $_;
                } 
-               split(/\b/, $sentence);
+               @word;
+               #split(/\b/, $sentence);
 
-    # Don't accept sentences that start with a non-word char
+    # Don't accept sentences that start with a non-word char.
+    # Don't accept small sentences.
     next if($word[0] =~ /^\W/);
+    next if(@word < 2);
+    
+    #print join(" ", @word)."\n";
 
     # Record the first word as a possible seed to the MM
     $start{$word[0]}++;

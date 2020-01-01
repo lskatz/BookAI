@@ -159,11 +159,20 @@ sub boostModel{
   # Find the closest existing word for the boosted word
   if(!defined($$model{transition}{$boostedWord})){
     my $tf = Text::Fuzzy->new($boostedWord, trans=>1);
-    my @nearest = $tf->nearestv([keys(%{ $$model{transition} })]);
-    my $nearest = $nearest[0]; # band aid
+    my @nearest = $tf->nearestv([
+      keys(%{ $$model{transition} })
+    ]);
 
-    # TODO filter @nearest for something like 
-    # If capitalized, then filter for capitalized
+    # sort @nearest for something like 
+    # If capitalized, then sort for capitalized
+    @nearest = sort {
+      my $distA = $tf->distance($a);
+      my $distB = $tf->distance($b);
+      $distA <=> $distB ||
+        $a cmp $b
+    } @nearest;
+
+    my $nearest = $nearest[0];
     
     logmsg "Could not find $boostedWord for boosting! Substituting $nearest for $boostedWord in the model.";
     logmsg "Distance is ".$tf->distance($nearest)."\n";
@@ -192,12 +201,16 @@ sub boostModel{
   
   # Boost the transition words
   for my $from(keys(%{ $$model{transition} })){
-    $$model{transition}{$from}{$boostedWord} += $freqInc;
+    if(defined($$model{transition}{$from}{$boostedWord})){
+      $$model{transition}{$from}{$boostedWord} += $freqInc;
+    }
   }
 
   # Ensure that the boosted word can transition to something else
   for(@startWords){
-    $$model{transition}{$boostedWord}{$_} += $freqInc;
+    if(defined($$model{transition}{$boostedWord}{$_})){
+      $$model{transition}{$boostedWord}{$_} += $freqInc;
+    }
   }
 
   return $model;
