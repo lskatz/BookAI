@@ -71,7 +71,8 @@ sub train{
                  s/["\(\)]//g;
 
                  # Remove italics
-                 s/^_([a-zA-Z]+)_$/$1/;
+                #s/^_([a-zA-Z]+)_$/$1/;
+                 s/^_+|_+$//g;
 
                  $_;
                } 
