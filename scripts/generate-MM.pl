@@ -78,7 +78,9 @@ sub generateText{
 
     if($$settings{filter}){
       # Check sentence for quality
-      my $dictionOut = `echo '$sentence' | diction 2>&1`;
+      my $qmSentence = quotemeta($sentence);
+      #logmsg $qmSentence;
+      my $dictionOut = `echo "$qmSentence" | diction 2>&1`;
       my $exit_code = $? << 8;
       if($exit_code || $dictionOut =~ /\[/){
         #logmsg "Sentence seemed to have warnings. Trying another. <= $sentence";

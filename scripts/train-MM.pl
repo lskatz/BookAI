@@ -76,7 +76,6 @@ sub train{
                  $_;
                } 
                @word;
-               #split(/\b/, $sentence);
 
     # Don't accept sentences that start with a non-word char.
     # Don't accept small sentences.
