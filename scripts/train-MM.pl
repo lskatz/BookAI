@@ -37,6 +37,7 @@ sub train{
   open(my $fh, '<', $infile) or die "ERROR reading file $infile: $!";
   my $text = <$fh>;
   close $fh;
+  $text =~ s/\x94/ /g;
 
   for my $sentence(@{ get_sentences($text) }){
     $sentence =~ s/^\s+|\s+$//g;
@@ -59,12 +60,19 @@ sub train{
     my @word = quotewords('\s+', 0, $sentence);
        @word = grep {/\S/ } 
                map{
-                 s/\x94/ /g;            # Remove <94>
-                 s/[“”]//g;             # Change windows quotes
-                 s/[‘’]//g;             # Change windows quotes
-                 s/,//g;                # remove commas
+                #s/\x94/ /g;            # Remove <94>
                  s/^\s+|\s+$//g;        # trim whitespace
-                 s/^_([a-zA-Z]+)_$/$1/; # remove italics
+                 s/[“”]/"/g;            # Change windows quotes
+                 s/[‘’]/'/g;            # Change windows quotes
+                #s/,//g;                # remove commas
+
+                 # Removing some characters is a band aid
+                 # but I don't know what to do for now
+                 s/["\(\)]//g;
+
+                 # Remove italics
+                 s/^_([a-zA-Z]+)_$/$1/;
+
                  $_;
                } 
                @word;
