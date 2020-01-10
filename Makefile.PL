@@ -7,7 +7,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile1(
   NAME         => 'BookAI',
-  #VERSION_FROM => 'lib/Mashtree.pm',
+  VERSION_FROM => 'lib/BookAI.pm',
   #ABSTRACT_FROM => 'lib/Mashtree.pm',
   #ABSTRACT_FROM => 'README.md',
   AUTHOR => q{Lee S. Katz <lskatz@gmail.com>},
@@ -26,10 +26,11 @@ WriteMakefile1(
     'Exporter'       => 0,
 
     # noncore
-    'Lingua::EN::Sentence' => 0,
+    'Lingua::EN::Tagger'   => 0,
     'Text::Fuzzy'          => 0,
     'Text::ParseWords'     => 0,
     'String::Markov'       => 0,
+    'Lingua::EN::Sentence' => 0,
   },
   BUILD_REQUIRES => {
     'Test::More'     => 0.47,

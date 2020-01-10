@@ -6,8 +6,8 @@ use Data::Dumper qw/Dumper/;
 use Getopt::Long qw/GetOptions/;
 use Lingua::EN::Sentence qw/get_sentences add_acronyms/;
 use Text::ParseWords qw/quotewords/;
-use Clone 'clone';
 use String::Markov;
+use Lingua::EN::Tagger;
 
 local $0 = basename $0;
 sub logmsg{print STDERR "$0: @_\n";}
@@ -50,12 +50,26 @@ sub train{
   $text =~ s/["\(\)]//g; # Remove parentheses
   $text =~ s/_+//g;      # Remove italics
 
-  # split into sentences
+  ## split into sentences
+  # Count sentences
+  my $numSentences = 0;
+  # Tag parts of speech
+  my $partOfSpeechTagger = Lingua::EN::Tagger->new;
   for my $sentence(@{ get_sentences($text) }){
     next if($sentence =~ /^\W/);
+    $numSentences++;
+
+    # modify the sentence
     $sentence =~ s/^\s+|\s+$//g; # whitespace trim
 
-    $markovChain->add_sample($sentence);
+    # Tag the parts of speech in the sentence
+    my $xmlSentence    = $partOfSpeechTagger->add_tags($sentence);
+    #my $taggedSentence = $partOfSpeechTagger->get_readable($sentence);
+    # Markov chain
+    $markovChain->add_sample($xmlSentence);
+
+    #logmsg $numSentences if($numSentences % 1000 == 1);
+    #print STDERR ".";
   }
 
   return $markovChain;

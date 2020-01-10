@@ -23,6 +23,9 @@ sub main{
   my($infile) = @ARGV;
 
   my $text = generateText($infile, $$settings{numsentences}, $settings);
+  $text=~s|<(\w+?)>([^<]+?)</\w+?>|$2|g; # Remove xml tags
+  $text=~s/\s+('(s|re))/$1/g;            # fix contractions
+  $text=~s/\s+([,;\.\!\?])/$1/g;         # fix punctuation
 
   print "$text\n";
 
