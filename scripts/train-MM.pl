@@ -44,7 +44,7 @@ sub train{
   open(my $fh, '<', $infile) or die "ERROR reading file $infile: $!";
   my $text = <$fh>;
   close $fh;
-  $text =~ s/\x94/ /g;
+  $text =~ s/\x94/ /g;   # remove weird whitespace characters
   $text =~ s/[“”]/"/g;   # Change windows quotes
   $text =~ s/[‘’]/'/g;   # Change windows quotes
   $text =~ s/["\(\)]//g; # Remove parentheses
