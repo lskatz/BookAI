@@ -7,6 +7,8 @@ use Getopt::Long qw/GetOptions/;
 use JSON ();
 use FindBin qw/$RealBin/;
 
+use MediaWiki::API;
+
 local $0 = basename $0;
 sub logmsg{print STDERR "$0: @_\n";}
 exit main();
@@ -16,66 +18,61 @@ sub main{
   GetOptions($settings,qw(help api_key|api-key|api=s)) or die $!;
   usage() if($$settings{help});
   usage() if(!@ARGV);
-  
-  my $apiKey = getApiKey($settings);
-  my $images = search(\@ARGV, $apiKey, $settings);
+
+  my $queryString = join(" ", @ARGV);
+
+  my $mw = MediaWiki::API->new( {
+    api_url => 'https://en.wikipedia.org/w/api.php',
+    #action  => 'query',
+  }  );
+
+  # Find the first pages that matches the text
+  my $query = {
+    action => 'opensearch',
+    namespace => '*',
+    limit     => 10,
+    redirects => 'resolve',
+    search    => $queryString,
+  };
+  my $res = $mw->api($query);
+
+  # TODO shuffle results??
+
+  # Find the first page that has an image
+  my $numResults = @{ $$res[1] };
+  for(my $i=0; $i<$numResults; $i++){
+    my $image = getImageFromPage($mw, $$res[1][$i], $$res[3][$i]);
+
+    die Dumper $image;
+  }
+
   return 0;
 }
 
-# Get the API key from the command line flag or the file.
-# If not supplied one way or the other, create a template
-# config file for the api key.
-sub getApiKey{
-  my($settings) = @_;
-  if($$settings{api_key}){
-    return $$settings{api_key};
+sub getImageFromPage{
+  my($mw, $title, $url) = @_;
+
+  my $content = `wget $url -O - 2>/dev/null`;
+
+  my @possibleImg;
+  while($content =~ /<img.*?src="([^"]+)"/g){
+    my $img= $1;
+    if($img =~ m|^//|){
+      $img = "https:$img";
+    } else {
+      $img =~ s|^/||;
+      $img = "https://en.wikipedia.org/$img";
+    }
+
+    if($img =~ /upload.wikimedia.org/){
+      return $img;
+    }
+
+    push(@possibleImg, $img);
   }
 
-  my $confFile = "$RealBin/../config/google.conf";
-  if(! -e $confFile){
-    mkdir dirname($confFile);
-    open(my $confFh, ">", $confFile) or die "ERROR: could not make conf file $confFile: $!";
-    print $confFh "api\tABC123\n";
-    close $confFh;
-    die "ERROR: conf file did not exist and so I made a blank template at $confFh! Add your API key there from Google.";
-  }
-
-  open(my $confFh, $confFile) or die "ERROR: could not read $confFile: $!";
-  my $apiLine = <$confFh>;
-  close $confFh;
-  my(undef, $apiKey) = split(/\s+/, $apiLine);
-  return $apiKey;
-}
-
-# Lots of help from
-# https://developers.google.com/custom-search/v1/cse/list
-sub search{
-  my($searchArr, $apiKey, $settings) = @_;
-
-  # Join the search terms to make the query
-  my $query = join("%20", @$searchArr);
-
-  # Start generating the REST API URL
-  my $restUrl = "https://www.googleapis.com/customsearch/v1?key=$apiKey&q=$query";
-  # Limit to JPG
-  $restUrl   .= "&fileType=jpg";
-  # Large images
-  $restUrl   .= "&imgSize=large";
-  # Public domain rights
-  $restUrl   .= "&rights=cc_publicdomain";
-  # Safe search on
-  $restUrl   .= "&safe=active";
-  # Image search
-  $restUrl   .= "&searchType=image";
-
-  # Limit the whole thing to 2048 characters
-  if(length($restUrl) > 2048){
-    die "ERROR: REST API limit is 2048 characters and this one is ".length($restUrl)."\n$restUrl\n";
-  }
-
-  my $json = `wget "$restUrl"`;
-  print $json;
-  die;
+  # TODO randomize?
+  return $possibleImg[0];
 }
 
 sub usage{
