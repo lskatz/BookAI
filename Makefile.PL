@@ -31,6 +31,9 @@ WriteMakefile1(
     'Text::ParseWords'     => 0,
     'String::Markov'       => 0,
     'Lingua::EN::Sentence' => 0,
+    'Image::Info'          => 0,
+    'JSON'                 => 0,
+    'MediaWiki::API'       => 0,
   },
   BUILD_REQUIRES => {
     'Test::More'     => 0.47,

@@ -10,6 +10,7 @@ use List::Util qw/shuffle/;
 use JSON ();
 use LWP::Simple qw/get/;
 use MediaWiki::API;
+use Image::Info qw/image_info dim/;
 
 local $0 = basename $0;
 sub logmsg{print STDERR "$0: @_\n";}
@@ -35,27 +36,51 @@ sub main{
     $res = getFirstReasonableHits($mw, $queryString);
 
     # Remove a random word
+    if(@query < 2){
+      @query = @ARGV;
+    }
     @query = shuffle(@query);
     shift(@query);
     $queryString = join(" ", @query);
   }
+  if(!defined($res) || !$$res[0]){
+    die "ERROR: no suitable hits";
+  }
+
+  my $numResults = @{ $$res[1] };
+
+  # Put results into a hash that makes sense:
+  # title => {url=>https://...}
+  my %result;
+  for(my $i=0;$i<$numResults;$i++){
+    $result{$$res[1][$i]} = {url=>$$res[3][$i]};
+  }
 
   # TODO shuffle results??
 
+  my %imageDimensions;
   # Find the first page that has an image
-  my $numResults = @{ $$res[1] };
-  my $image = "";
-  for(my $i=0; $i<$numResults; $i++){
-    $image = getImageFromPage($mw, $$res[1][$i], $$res[3][$i]);
+  while(my($title, $info) = each(%result)){
+    my $images = getImagesFromPage($mw, $$info{url});
 
-    ## TODO test to see if it's a reasonable image
+    my @filteredImages;
+    for my $image(@$images){
+      next if($imageDimensions{$image});
 
-    if($image){
-      last;
+      ## TODO test to see if it's a reasonable image
+      my $image_data = get($image);
+      my $image_info = image_info(\$image_data);
+      my @dim = dim($image_info);
+
+      print "@dim\n";
+      if(@dim==2 && $dim[0] > 200 && $dim[1] > 200){
+        $imageDimensions{$image} = \@dim;
+      }
     }
+    #$result{$title}{imageUrl} = \@filteredImages;
   }
 
-  print "$image\n";
+  print Dumper \%imageDimensions;
 
   return 0;
 }
@@ -71,12 +96,16 @@ sub getFirstReasonableHits{
     search    => $queryString,
   };
   my $res = $mw->api($query);
+
+  if(!defined($res)){
+    $res = [ "", [], [], [] ];
+  }
   
   return $res;
 }
 
-sub getImageFromPage{
-  my($mw, $title, $url) = @_;
+sub getImagesFromPage{
+  my($mw, $url) = @_;
 
   my $content = get($url);
 
@@ -90,15 +119,15 @@ sub getImageFromPage{
       $img = "https://en.wikipedia.org/$img";
     }
 
-    if($img =~ /upload.wikimedia.org/){
-      return $img;
+    if($img !~ /upload.wikimedia.org/){
+      next;
     }
 
     push(@possibleImg, $img);
   }
 
   # TODO randomize?
-  return $possibleImg[0];
+  return \@possibleImg;
 }
 
 sub usage{
