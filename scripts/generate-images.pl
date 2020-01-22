@@ -4,9 +4,10 @@ use warnings;
 use File::Basename qw/basename dirname/;
 use Data::Dumper qw/Dumper/;
 use Getopt::Long qw/GetOptions/;
-use JSON ();
 use FindBin qw/$RealBin/;
+use List::Util qw/shuffle/;
 
+use JSON ();
 use LWP::Simple qw/get/;
 use MediaWiki::API;
 
@@ -20,7 +21,8 @@ sub main{
   usage() if($$settings{help});
   usage() if(!@ARGV);
 
-  my $queryString = join(" ", @ARGV);
+  my @query = @ARGV;
+  my $queryString = join(" ", @query);
 
   my $mw = MediaWiki::API->new( {
     api_url => 'https://en.wikipedia.org/w/api.php',
@@ -29,8 +31,13 @@ sub main{
 
   my $res = [ "", [], [], [] ];
   while(length($res) > 1 && !@{ $$res[1] }){
+    print "Query:\n  $queryString\n";
     $res = getFirstReasonableHits($mw, $queryString);
-    $queryString =~ s/\s+\S+$//; # remove last word
+
+    # Remove a random word
+    @query = shuffle(@query);
+    shift(@query);
+    $queryString = join(" ", @query);
   }
 
   # TODO shuffle results??
