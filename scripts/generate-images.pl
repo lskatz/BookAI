@@ -7,6 +7,7 @@ use Getopt::Long qw/GetOptions/;
 use JSON ();
 use FindBin qw/$RealBin/;
 
+use LWP::Simple qw/get/;
 use MediaWiki::API;
 
 local $0 = basename $0;
@@ -15,7 +16,7 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help api_key|api-key|api=s)) or die $!;
+  GetOptions($settings,qw(help)) or die $!;
   usage() if($$settings{help});
   usage() if(!@ARGV);
 
@@ -26,6 +27,34 @@ sub main{
     #action  => 'query',
   }  );
 
+  my $res = [ "", [], [], [] ];
+  while(length($res) > 1 && !@{ $$res[1] }){
+    $res = getFirstReasonableHits($mw, $queryString);
+    $queryString =~ s/\s+\S+$//; # remove last word
+  }
+
+  # TODO shuffle results??
+
+  # Find the first page that has an image
+  my $numResults = @{ $$res[1] };
+  my $image = "";
+  for(my $i=0; $i<$numResults; $i++){
+    $image = getImageFromPage($mw, $$res[1][$i], $$res[3][$i]);
+
+    ## TODO test to see if it's a reasonable image
+
+    if($image){
+      last;
+    }
+  }
+
+  print "$image\n";
+
+  return 0;
+}
+
+sub getFirstReasonableHits{
+  my($mw, $queryString) = @_;
   # Find the first pages that matches the text
   my $query = {
     action => 'opensearch',
@@ -35,24 +64,14 @@ sub main{
     search    => $queryString,
   };
   my $res = $mw->api($query);
-
-  # TODO shuffle results??
-
-  # Find the first page that has an image
-  my $numResults = @{ $$res[1] };
-  for(my $i=0; $i<$numResults; $i++){
-    my $image = getImageFromPage($mw, $$res[1][$i], $$res[3][$i]);
-
-    die Dumper $image;
-  }
-
-  return 0;
+  
+  return $res;
 }
 
 sub getImageFromPage{
   my($mw, $title, $url) = @_;
 
-  my $content = `wget $url -O - 2>/dev/null`;
+  my $content = get($url);
 
   my @possibleImg;
   while($content =~ /<img.*?src="([^"]+)"/g){
@@ -80,12 +99,7 @@ sub usage{
   Usage: $0 words in a sentence > out.jpg
 
   where 'words in a sentence' is an unquoted set of words
-  used as a search term for Google Images
-
-  --api_key      A google api key. See the following for details:
-                 https://developers.google.com/custom-search/v1/using_rest
-                 Can also edit the file conf/google.conf to
-                 permanently add your key.
+  used as a search term for Wikipedia
 ";
   exit 0;
 }
