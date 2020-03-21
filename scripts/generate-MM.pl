@@ -36,10 +36,12 @@ sub generateText{
   my($modelFile, $numSentences, $settings) = @_;
 
   my $model = readDumper($modelFile, $settings);
+  my $markov = $$model{markov};
+  my $sentenceTransition = $$model{sentenceTransition};
 
   my $text = "";
   for(1..$numSentences){
-    $text .= $model->generate_sample()." ";
+    $text .= $markov->generate_sample()." ";
   }
   return $text;
 }

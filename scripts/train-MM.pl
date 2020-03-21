@@ -39,6 +39,15 @@ sub train{
     join_sep  => ' ',
   );
 
+  # Hash of
+  #   word => {
+  #     first word of next sentence    => frequency,
+  #     first word of another sentence => frequency,
+  #     ...,
+  #   }
+  my %sentenceTransition = ();
+  my @previousWords = ();
+
   # Read the input file
   local $/ = undef;
   open(my $fh, '<', $infile) or die "ERROR reading file $infile: $!";
@@ -70,9 +79,47 @@ sub train{
 
     #logmsg $numSentences if($numSentences % 1000 == 1);
     #print STDERR ".";
+
+    # Add into the previous words that they all
+    # transitioned to this sentence that started
+    # with this word.
+    my $firstWord = $previousWords[0];
+    for my $word (@previousWords){
+      $sentenceTransition{$word}{$firstWord}++;
+    }
+
+    # Record the current sentence as the 'previous
+    # sentence' for the next iteration, into
+    # into @previousWords.
+    @previousWords = ();
+    while($xmlSentence =~ /(\S+)/g){
+      my $word = $1;
+      push(@previousWords, $word);
+    }
   }
 
-  return $markovChain;
+  # Normalize the sentence transitions to frequency
+  my %sentenceTransitionFrequency;
+  while(my($from, $nextSentenceStartCounts) = each(%sentenceTransition)){
+    my $total = 0;
+    my $numToWords = 0;
+    # Get the total number of transitions
+    while(my($to, $count) = each(%$nextSentenceStartCounts)){
+      $total += $count;
+      $numToWords++;
+    }
+    # Avoid low complexity transitions
+    if($numToWords < 5){
+      next;
+    }
+
+    # Get frequencies
+    while(my($to, $count) = each(%$nextSentenceStartCounts)){
+      $sentenceTransitionFrequency{$from}{$to} = $count / $total;
+    }
+  }
+
+  return {markov=>$markovChain, sentenceTransition=>\%sentenceTransitionFrequency};
 
 }
 
