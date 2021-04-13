@@ -4,6 +4,10 @@ use warnings;
 use File::Basename qw/basename/;
 use Data::Dumper qw/Dumper/;
 use Getopt::Long qw/GetOptions/;
+
+use FindBin qw/$RealBin/;
+use lib "$RealBin/../lib/perl5";
+
 use Lingua::EN::Sentence qw/get_sentences add_acronyms/;
 use Text::ParseWords qw/quotewords/;
 use String::Markov;

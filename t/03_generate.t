@@ -4,6 +4,10 @@ use warnings;
 use File::Basename qw/basename dirname/;
 use Data::Dumper;
 use Test::More tests=>3;
+
+use FindBin qw/$RealBin/;
+use lib "$RealBin/../lib/perl5";
+
 use Lingua::EN::Sentence qw/get_sentences add_acronyms/;
 
 my $dirname = dirname $0;
