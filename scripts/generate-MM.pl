@@ -4,6 +4,10 @@ use warnings;
 use File::Basename qw/basename/;
 use Data::Dumper qw/Dumper/;
 use Getopt::Long qw/GetOptions/;
+use FindBin qw/$RealBin/;
+
+use lib "$RealBin/../lib/perl5";
+
 use Text::Fuzzy;
 use String::Markov;
 
@@ -13,12 +17,17 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help boost=s filter! numsentences|num-sentences|sentences=i )) or die $!;
+  GetOptions($settings,qw(help boost=s seed=i filter! numsentences|num-sentences|sentences=i )) or die $!;
   usage() if($$settings{help});
   usage() if(!@ARGV);
   $$settings{numsentences} ||= 1;
   $$settings{filter}       //= 1;
   $$settings{boost}        ||= "";
+
+  # Set the seed with either a random number or the supplied number
+  my $largeInt = 1e7;
+  $$settings{seed} ||= int(rand($largeInt));
+  srand($$settings{seed});
   
   my($infile) = @ARGV;
 
@@ -147,6 +156,8 @@ sub usage{
                            with Word2.
   --no-filter              Do not remove and replace any sentence that
                            does not pass a simple grammar check.
+  --seed                   Seed for randomness, to help guarantee
+                           a deterministic result.
 ";
   exit 0;
 }
