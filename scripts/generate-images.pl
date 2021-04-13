@@ -7,6 +7,8 @@ use Getopt::Long qw/GetOptions/;
 use FindBin qw/$RealBin/;
 use List::Util qw/shuffle/;
 
+use lib "$RealBin/../lib/perl5";
+
 use JSON ();
 use LWP::Simple qw/get/;
 use MediaWiki::API;
@@ -109,21 +111,41 @@ sub getImagesFromPage{
 
   my $content = get($url);
 
+  #my $p = HTML::TagParser->new($content);
+  #my @lowresImg = $p->getElementsByTagName('a
+
   my @possibleImg;
-  while($content =~ /<img.*?src="([^"]+)"/g){
-    my $img= $1;
-    if($img =~ m|^//|){
-      $img = "https:$img";
-    } else {
-      $img =~ s|^/||;
-      $img = "https://en.wikipedia.org/$img";
-    }
+  while($content =~ /<a\s+.*?href="(.*?)"/g){
 
-    if($img !~ /upload.wikimedia.org/){
-      next;
-    }
+    # Get the image URL from the primary URL
+    my $img = $1;
+    my $imgPageUrl  = "https://en.wikipedia.org/$img";
 
-    push(@possibleImg, $img);
+    # Get the hires landing page for the image
+    my $imgPageHtml = get($imgPageUrl);
+
+    $|++;
+    while($imgPageHtml =~ /<a\s+.*?href="(.*?)"/g){
+      print ".";
+      
+      # Find the actual hi-resolution URL
+      my $hires = $1;
+      my $hiresUrl = $hires;
+      $hiresUrl =~ s|^//|https://|;
+      
+      ## Test to see if it's a reasonable image
+      my $image_data = get($hiresUrl);
+      my $image_info = image_info(\$image_data);
+      my @dim = dim($image_info);
+
+      if(@dim < 1){
+        next;
+      }
+
+      print "$hiresUrl => @dim\n";
+    }
+    print "\n";
+
   }
 
   # TODO randomize?
