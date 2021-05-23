@@ -27,6 +27,7 @@ subtest "Generate some text" => sub{
   is($exit_code, 0, "Exit code 0");
   my @word = split(/\s+/, $sentence);
   ok(scalar(@word) > 0, "Generated more than one word in a single sentence: $sentence");
+
 };
 
 subtest "Generate five sentences" => sub{
@@ -35,7 +36,7 @@ subtest "Generate five sentences" => sub{
   my $numSentences = 5;
   my $minWords = $numSentences * 2;
 
-  my $fiveSentences = `perl $dirname/../scripts/generate-MM.pl --numsentences $numSentences $MMFile`;
+  my $fiveSentences = `perl $dirname/../scripts/generate-MM.pl --seed 42 --numsentences $numSentences $MMFile`;
   chomp($fiveSentences);
   my $exit_code = $? << 8;
   is($exit_code, 0, "Exit code 0");
