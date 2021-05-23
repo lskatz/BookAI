@@ -32,9 +32,14 @@ sub main{
     #action  => 'query',
   }  );
 
+  # $res is a struct of 
+  #   query
+  #   list of URL hits
+  #   TODO
+  #   TODO
   my $res = [ "", [], [], [] ];
-  while(length($res) > 1 && !@{ $$res[1] }){
-    print "Query:\n  $queryString\n";
+  while(!@{ $$res[1] }){
+    logmsg "Query: $queryString\n";
     $res = getFirstReasonableHits($mw, $queryString);
 
     # Remove a random word
@@ -80,6 +85,7 @@ sub main{
       }
     }
     #$result{$title}{imageUrl} = \@filteredImages;
+    logmsg "DEBUG"; last;
   }
 
   print Dumper \%imageDimensions;
@@ -115,6 +121,7 @@ sub getImagesFromPage{
   #my @lowresImg = $p->getElementsByTagName('a
 
   my @possibleImg;
+  logmsg "Finding possible images on $url";
   while($content =~ /<a\s+.*?href="(.*?)"/g){
 
     # Get the image URL from the primary URL
@@ -125,13 +132,18 @@ sub getImagesFromPage{
     my $imgPageHtml = get($imgPageUrl);
 
     $|++;
-    while($imgPageHtml =~ /<a\s+.*?href="(.*?)"/g){
-      print ".";
+    while($imgPageHtml && $imgPageHtml =~ /<a\s+.*?href="(.*?)"/g){
+      #print STDERR ".";
       
       # Find the actual hi-resolution URL
       my $hires = $1;
       my $hiresUrl = $hires;
       $hiresUrl =~ s|^//|https://|;
+      $hiresUrl =~ s|^/(wiki/)|https://wikipedia.org/$1|;
+
+      # go faster by limiting to just some extensions
+      next if($hiresUrl !~ /\.(jpg|gif|png)/i);
+      logmsg $hiresUrl;
       
       ## Test to see if it's a reasonable image
       my $image_data = get($hiresUrl);
@@ -142,9 +154,15 @@ sub getImagesFromPage{
         next;
       }
 
-      print "$hiresUrl => @dim\n";
+      print STDERR "$hiresUrl => @dim\n";
+      push(@possibleImg, {url=>$hiresUrl, dim=>\@dim});
+
+      if(@possibleImg > 1){
+        logmsg "DEBUG";
+        last;
+      }
     }
-    print "\n";
+    print STDERR "\n";
 
   }
 
