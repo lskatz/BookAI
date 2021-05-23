@@ -52,7 +52,8 @@ subtest "Generate five sentences" => sub{
     for(my $i=0;$i<$numSentences;$i++){
       my $sentence = $$sentences[$i];
       my @word = split(/\s+/, $sentence);
-      ok(scalar(@word) >= 1, ">=1 word in sentence $i => $sentence");
+      diag "Sentence $i: $sentence";
+      ok(scalar(@word) >= 1, ">=1 word in sentence $i");
     }
   };
 };

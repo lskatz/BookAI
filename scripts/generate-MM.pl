@@ -55,7 +55,11 @@ sub generateText{
     # get the next sentence but since I messed with the
     # String::Markov object, avoid warnings.
     my $nextSentence = $markov->generate_sample();
-    $text .= $nextSentence;
+    # Get at least two words in the sentence by checking for a space.
+    while($nextSentence !~ / /){
+      $nextSentence = $markov->generate_sample();
+    }
+    $text .= $nextSentence ." ";
   }
   return $text;
 }
