@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use File::Basename qw/basename/;
 use Data::Dumper qw/Dumper/;
+$Data::Dumper::Sortkeys = 1;
 use Getopt::Long qw/GetOptions/;
 
 use FindBin qw/$RealBin/;
@@ -19,20 +20,49 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help)) or die $!;
-  usage() if($$settings{help});
+  GetOptions($settings,qw(help mincount|min-count=i)) or die $!;
+  usage() if($$settings{help} || !@ARGV);
+  $$settings{mincount} ||= 1;
   
   my($infile) = @ARGV;
 
-  my $training = train($infile, $settings);
+  # Do the first round of training but we will learn from
+  # this first round and train again.
+  my $emptyFilter = {};
+  #logmsg "DEBUG";$$filter{'<wrb>Why</wrb>'}{'<ppc>,</ppc>'}=1;
+  #logmsg "DEBUG";$$filter{'<wrb>why</wrb>'}{'<vbd>did</vbd>'}=1;
+  my $initialTraining = train($infile, $emptyFilter, $settings);
+
+  my $filter = lowFrequencyTransitions($initialTraining, $settings);
+  my $training = train($infile, $filter, $settings);
 
   print Dumper $training;
 
   return 0;
 }
 
+sub lowFrequencyTransitions{
+  my($markov, $settings) = @_;
+
+  my $minCount = $$settings{mincount} || 1;
+
+  my %lowFrequencyTransition;
+
+  while(my($cur, $nxtCount) = each(%{ $$markov{transition_count} })){
+    while(my($nxt, $count) = each(%$nxtCount)){
+      if($count < $minCount){
+        $lowFrequencyTransition{$cur}{$nxt} = $count." j";
+      }
+    }
+  }
+
+  return \%lowFrequencyTransition;
+}
+
+# $infile: the input file path
+# $filter: a hash of word transitions. e.g., $filter = {from}{to}=>1
 sub train{
-  my($infile, $settings) = @_;
+  my($infile, $filter, $settings) = @_;
 
   my $wordsCounter = 0;
 
@@ -43,14 +73,6 @@ sub train{
     join_sep  => ' ',
   );
 
-  # Hash of
-  #   word => {
-  #     first word of next sentence    => frequency,
-  #     first word of another sentence => frequency,
-  #     ...,
-  #   }
-  my %sentenceTransition = ();
-  my @previousWords = ();
 
   # Read the input file
   local $/ = undef;
@@ -79,57 +101,33 @@ sub train{
     my $xmlSentence    = $partOfSpeechTagger->add_tags($sentence);
     #my $taggedSentence = $partOfSpeechTagger->get_readable($sentence);
     # Markov chain
-    $markovChain->add_sample($xmlSentence);
 
-    #logmsg $numSentences if($numSentences % 1000 == 1);
-    #print STDERR ".";
-
-    # Add into the previous words that they all
-    # transitioned to this sentence that started
-    # with this word.
-    my $firstWord = $previousWords[0];
-    for my $word (@previousWords){
-      $sentenceTransition{$word}{$firstWord}++;
+    # If this sentence contains some filtered transition
+    # then skip it.
+    my $should_filter_sentence = 0; # mark if we should skip the sentence
+    my @taggedWord = split(/\s+/, $xmlSentence);
+    my $numWords = @taggedWord;
+    for(my $i=0;$i<$numWords-1;$i++){
+      my($from, $to) = ($taggedWord[$i], $taggedWord[$i+1]);
+      if($$filter{$from}{$to}){
+        $should_filter_sentence = 1;
+      }
     }
-
-    # Record the current sentence as the 'previous
-    # sentence' for the next iteration, into
-    # into @previousWords.
-    @previousWords = ();
-    while($xmlSentence =~ /(\S+)/g){
-      my $word = $1;
-      push(@previousWords, $word);
-    }
-  }
-
-  # Normalize the sentence transitions to frequency
-  my %sentenceTransitionFrequency;
-  while(my($from, $nextSentenceStartCounts) = each(%sentenceTransition)){
-    my $total = 0;
-    my $numToWords = 0;
-    # Get the total number of transitions
-    while(my($to, $count) = each(%$nextSentenceStartCounts)){
-      $total += $count;
-      $numToWords++;
-    }
-    # Avoid low complexity transitions
-    if($numToWords < 5){
+    if($should_filter_sentence){
       next;
     }
 
-    # Get frequencies
-    while(my($to, $count) = each(%$nextSentenceStartCounts)){
-      $sentenceTransitionFrequency{$from}{$to} = $count / $total;
-    }
+    $markovChain->add_sample($xmlSentence);
   }
 
-  return {markov=>$markovChain, sentenceTransition=>\%sentenceTransitionFrequency};
-
+  return $markovChain;
 }
 
 sub usage{
   print "$0: train a hidden markov model with types of sentences
-  Usage: $0 training.tsv > model.dmp
+  Usage: $0 training-input.txt > model.dmp
+  --mincount  1  How often a transition has to occur before
+                 filtering it out.
   ";
   exit 0;
 }

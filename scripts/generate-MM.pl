@@ -18,13 +18,12 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help boost=s seed=i filter! minfrequency|min-frequency=i numsentences|num-sentences|sentences=i )) or die $!;
+  GetOptions($settings,qw(help boost=s seed=i filter! numsentences|num-sentences|sentences=i )) or die $!;
   usage() if($$settings{help});
   usage() if(!@ARGV);
   $$settings{numsentences} ||= 1;
   $$settings{filter}       //= 1;
   $$settings{boost}        ||= "";
-  $$settings{minfrequency} ||= 1;
 
   # Set the seed with either a random number or the supplied number
   my $largeInt = 1e7;
@@ -46,58 +45,19 @@ sub main{
 sub generateText{
   my($modelFile, $numSentences, $settings) = @_;
 
-  my $model = readDumper($modelFile, $settings);
-  my $markov = $$model{markov};
+  my $markov = readDumper($modelFile, $settings);
 
   # deprecated: sentenceTransition
   #my $sentenceTransition = $$model{sentenceTransition};
-
-  # Do things like remove low frequency transitions
-  $markov = massageMarkov($markov, $settings);
 
   my $text = "";
   for(1..$numSentences){
     # get the next sentence but since I messed with the
     # String::Markov object, avoid warnings.
     my $nextSentence = $markov->generate_sample();
-    if($nextSentence !~ /[\.!\?]\s*$/){
-      $nextSentence .= ". ";
-    }
     $text .= $nextSentence;
   }
   return $text;
-}
-
-sub massageMarkov{
-  my($markovOld, $settings) = @_;
-
-  my $minCount = $$settings{minfrequency} || 1;
-
-  logmsg "Removing low frequency transitions of counts < $minCount";
-  
-  my $markov = {%$markovOld};
-  bless($markov, "String::Markov");
-  my $null = $markov->{null};
-
-  # Remove low count transitions
-  my @cur_word = sort keys(%{ $$markov{transition_count} });
-  for my $cur(@cur_word){
-    next if($cur eq $null || $cur =~ /^\s*$/);
-    #logmsg "cur '$cur'";
-    my @nxt = sort keys(%{ $$markov{transition_count}{$cur} });
-    for my $nxt(@nxt){
-      my $count = $$markov{transition_count}{$cur}{$nxt};
-      # Delete the transition from a word to another if it
-      # is too infrequent
-      if($count < $minCount ){
-        $markov->remove($cur,$nxt);
-      }
-    }
-
-  }
-  #print Dumper $markov; die;
-
-  return $markov;
 }
 
 # Add a function to remove a transition from the markov model
@@ -245,9 +205,6 @@ sub usage{
                            does not pass a simple grammar check.
   --seed                   Seed for randomness, to help guarantee
                            a deterministic result.
-  --minfrequency 1         Minimum count of transitions from a word
-                           to a word for the model to accept it.
-                           Removes low frequency transitions.
 ";
   exit 0;
 }
