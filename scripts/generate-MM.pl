@@ -10,7 +10,6 @@ use lib "$RealBin/../lib/perl5";
 
 use Text::Fuzzy;
 use String::Markov;
-use Clone 'clone';
 
 local $0 = basename $0;
 sub logmsg{print STDERR "$0: @_\n";}
@@ -56,7 +55,12 @@ sub generateText{
     # String::Markov object, avoid warnings.
     my $nextSentence = $markov->generate_sample();
     # Get at least two words in the sentence by checking for a space.
-    while($nextSentence !~ / /){
+    my $numTries = 0;
+    while($nextSentence !~ / / || $nextSentence !~ /[\.\?!;]<\/pp>$/){
+      if(++$numTries > 999){
+        die "ERROR: tried $numTries times to make a sentence but failed. Last sentence was $nextSentence";
+      }
+
       $nextSentence = $markov->generate_sample();
     }
     $text .= $nextSentence ." ";

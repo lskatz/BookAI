@@ -20,9 +20,10 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help mincount|min-count=i)) or die $!;
+  GetOptions($settings,qw(help order=i mincount|min-count=i)) or die $!;
   usage() if($$settings{help} || !@ARGV);
   $$settings{mincount} ||= 1;
+  $$settings{order}    ||= 1;
   
   my($infile) = @ARGV;
 
@@ -65,10 +66,11 @@ sub train{
   my($infile, $filter, $settings) = @_;
 
   my $wordsCounter = 0;
+  my $order = $$settings{order} || 1;
 
   # MM variables
   my $markovChain = String::Markov->new(
-    order     => 1,
+    order     => $order,
     split_sep => qr/\s+/,
     join_sep  => ' ',
   );
@@ -126,6 +128,7 @@ sub train{
 sub usage{
   print "$0: train a hidden markov model with types of sentences
   Usage: $0 training-input.txt > model.dmp
+  --order     1  The order of the Markov chain
   --mincount  1  How often a transition has to occur before
                  filtering it out.
   ";
