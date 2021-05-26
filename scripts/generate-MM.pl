@@ -17,7 +17,7 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help boost=s seed=i filter! numsentences|num-sentences|sentences=i )) or die $!;
+  GetOptions($settings,qw(help debug boost=s seed=i filter! numsentences|num-sentences|sentences=i )) or die $!;
   usage() if($$settings{help});
   usage() if(!@ARGV);
   $$settings{numsentences} ||= 1;
@@ -32,9 +32,43 @@ sub main{
   my($infile) = @ARGV;
 
   my $text = generateText($infile, $$settings{numsentences}, $settings);
+
+  logmsg $text if($$settings{debug});
+
+  # Fix spaces before contractions
+  # To test, use suggested seeds on The Martian
+  # posessive
+  $text=~s/\s+(<pos>'s<\/pos>)/$1/gi;
+  # negative contractions
+  $text=~s/\s+(<rb>n't<\/rb>)/$1/gi;
+  # will ('ll)
+  $text=~s/\s+(<md>'ll<\/md>)/$1/gi;
+  # am ('m)
+  $text=~s/\s+(<vbp>'m<\/vbp>)/$1/gi;
+  # is ('s) --seed 53
+  $text=~s/\s+(<vbz>'s<\/vbz>)/$1/gi;
+  #         --seed 70
+  $text=~s/\s+(<nnp>'s<\/nnp>)/$1/gi;
+  # are ('re)
+  $text=~s/\s+(<vbp>'re<\/vbp>)/$1/gi;
+  # have ('ve) --seed 54
+  $text=~s/\s+(<vbp>'ve<\/vbp>)/$1/gi;
+  # would ('d) --seed 50
+  $text=~s/\s+(<md>'d<\/md>)/$1/gi;
+
+  # numbers things
+  # percentage --seed 50
+  $text=~s/\s+(<nn>\%<\/nn>)/$1/g;
+  # dollars: fix the space after 
+  $text=~s/(<ppd>\$<\/ppd>)\s+//g;
+
+  # Fix spaces before punctuation
+  $text=~s/\s+(<pp>[\.\!\?]<\/pp>)/$1/g;
+  $text=~s/\s+(<ppc>[,]<\/ppc>)/$1/g;
+  $text=~s/\s+(<pps>[;\:]<\/pps>)/$1/g;
+  $text=~s/\s+(<pps>\.{3,}<\/pps>)/$1/g;
+
   $text=~s|<(\w+?)>([^<]+?)</\w+?>|$2|g; # Remove xml tags
-  $text=~s/\s+('(s|re))/$1/g;            # fix contractions
-  $text=~s/\s+([,;\.\!\?])/$1/g;         # fix punctuation
 
   print "$text\n";
 
@@ -213,6 +247,7 @@ sub usage{
                            does not pass a simple grammar check.
   --seed                   Seed for randomness, to help guarantee
                            a deterministic result.
+  --debug                  print some messages to stderr
 ";
   exit 0;
 }

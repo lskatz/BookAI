@@ -5,6 +5,7 @@ use File::Basename qw/basename/;
 use Data::Dumper qw/Dumper/;
 $Data::Dumper::Sortkeys = 1;
 use Getopt::Long qw/GetOptions/;
+use File::Temp qw/tempdir tempfile/;
 
 use FindBin qw/$RealBin/;
 use lib "$RealBin/../lib/perl5";
@@ -20,10 +21,11 @@ exit main();
 
 sub main{
   my $settings = {};
-  GetOptions($settings,qw(help order=i mincount|min-count=i)) or die $!;
+  GetOptions($settings,qw(help order=i mincount|min-count=i chunk=i)) or die $!;
   usage() if($$settings{help} || !@ARGV);
   $$settings{mincount} ||= 1;
   $$settings{order}    ||= 1;
+  $$settings{chunk}    ||= 1;
   
   my($infile) = @ARGV;
 
@@ -92,16 +94,20 @@ sub train{
   my $numSentences = 0;
   # Tag parts of speech
   my $partOfSpeechTagger = Lingua::EN::Tagger->new;
+  # Add some contractions to the tagger
+  addSomeWordsToTheModel($partOfSpeechTagger);
+  my @xmlSentence; # array of tagged sentences
   for my $sentence(@{ get_sentences($text) }){
+    # Only keep sentences with actual letters
     next if($sentence =~ /^\W/);
+
     $numSentences++;
 
     # modify the sentence
-    $sentence =~ s/^\s+|\s+$//g; # whitespace trim
+    $sentence =~ s/^\s+|\s+$//g; # Left/right whitespace trim
 
     # Tag the parts of speech in the sentence
     my $xmlSentence    = $partOfSpeechTagger->add_tags($sentence);
-    #my $taggedSentence = $partOfSpeechTagger->get_readable($sentence);
     # Markov chain
 
     # If this sentence contains some filtered transition
@@ -118,17 +124,47 @@ sub train{
     if($should_filter_sentence){
       next;
     }
+    
+    push(@xmlSentence, $xmlSentence);
+  }
 
-    $markovChain->add_sample($xmlSentence);
+  # Add sentences to the Markov model
+  while(@xmlSentence > 1){
+    my @sample = splice(@xmlSentence, 0, $$settings{chunk});
+    my $sample = join(" ", @sample);
+    $markovChain->add_sample($sample);
   }
 
   return $markovChain;
+}
+
+# I have no idea how well this works but I wanted
+# to add some contractions
+sub addSomeWordsToTheModel{
+  my($partOfSpeechTagger) = @_;
+
+  my %tags = (
+    # Copied the value from 'does'
+    "doesn't"    => "vbz:601",
+    "can't"      => "md:1128",
+  );
+
+  # Stole some code from Tagger::_load_words()
+  for my $key(keys %tags){
+    my $data = $tags{$key};
+    my %tags = split(/[:,]\s*/, $data);
+    while(my($tag, $value) = each(%tags)){
+      $$partOfSpeechTagger{_LEXICON}{$key}{$tag} = $value;
+    }
+  }
 }
 
 sub usage{
   print "$0: train a hidden markov model with types of sentences
   Usage: $0 training-input.txt > model.dmp
   --order     1  The order of the Markov chain
+  --chunk     1  How many sentences to feed the markov
+                 model at once.
   --mincount  1  How often a transition has to occur before
                  filtering it out.
   ";
