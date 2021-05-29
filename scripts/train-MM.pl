@@ -54,7 +54,8 @@ sub lowFrequencyTransitions{
   while(my($cur, $nxtCount) = each(%{ $$markov{transition_count} })){
     while(my($nxt, $count) = each(%$nxtCount)){
       if($count < $minCount){
-        $lowFrequencyTransition{$cur}{$nxt} = $count." j";
+        # if we have a low count, set bool true
+        $lowFrequencyTransition{$cur}{$nxt} = $count;
       }
     }
   }
@@ -95,7 +96,7 @@ sub train{
   # Tag parts of speech
   my $partOfSpeechTagger = Lingua::EN::Tagger->new;
   # Add some contractions to the tagger
-  addSomeWordsToTheModel($partOfSpeechTagger);
+  #addSomeWordsToTheModel($partOfSpeechTagger);
   my @xmlSentence; # array of tagged sentences
   for my $sentence(@{ get_sentences($text) }){
     # Only keep sentences with actual letters
@@ -136,27 +137,6 @@ sub train{
   }
 
   return $markovChain;
-}
-
-# I have no idea how well this works but I wanted
-# to add some contractions
-sub addSomeWordsToTheModel{
-  my($partOfSpeechTagger) = @_;
-
-  my %tags = (
-    # Copied the value from 'does'
-    "doesn't"    => "vbz:601",
-    "can't"      => "md:1128",
-  );
-
-  # Stole some code from Tagger::_load_words()
-  for my $key(keys %tags){
-    my $data = $tags{$key};
-    my %tags = split(/[:,]\s*/, $data);
-    while(my($tag, $value) = each(%tags)){
-      $$partOfSpeechTagger{_LEXICON}{$key}{$tag} = $value;
-    }
-  }
 }
 
 sub usage{
