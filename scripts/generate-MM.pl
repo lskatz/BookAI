@@ -90,7 +90,7 @@ sub generateText{
     my $nextSentence = $markov->generate_sample();
     # Get at least two words in the sentence by checking for a space.
     my $numTries = 0;
-    while($nextSentence !~ / / || $nextSentence !~ /[\.\?!;]<\/pp>$/){
+    while($nextSentence !~ / / || $nextSentence !~ /<\/pp>$/){
       if(++$numTries > 999){
         die "ERROR: tried $numTries times to make a sentence but failed. Last sentence was $nextSentence";
       }
