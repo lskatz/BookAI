@@ -45,5 +45,13 @@ Finally, it also uses `--numsentences 2` to make two sentences.
     $ perl scripts/generate-MM.pl wotw.MM.dmp --seed 42 --numsentences 2
     It was all over the boats pitched aimlessly. Close on towards the world; then I recalled the hole in my own. 
 
+## Algorithm
 
+* Reads an input file:
+   * Tags all parts of speech 
+   * Creates a Markov Model of word transitions including parts of speech. For example, `make` as a verb will have entirely different words following it than `make` as a noun.
+* Creates an output 
+   * Randomly chooses a starting word
+   * Uses Markov Model to choose next words
+   * Terminates when it reaches the end of a sentence (or whatever `--numsentences` is)
 
